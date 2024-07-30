@@ -2,7 +2,7 @@ import {
 	App,
 	Editor,
 	MarkdownView,
-	Modal,
+	Modal, Notice,
 	Plugin,
 	PluginSettingTab,
 	requestUrl,
@@ -13,10 +13,12 @@ import {
 
 interface MyPluginSettings {
 	syncPath: string;
+	cookie: string
 }
 
 const DEFAULT_SETTINGS: MyPluginSettings = {
-	syncPath: 'first'
+	syncPath: 'sharkNotes',
+	cookie: ''
 }
 
 export default class MyPlugin extends Plugin {
@@ -24,13 +26,16 @@ export default class MyPlugin extends Plugin {
 
 	async onload() {
 		await this.loadSettings();
-
 		// This creates an icon in the left ribbon.
 		const ribbonIconEl = this.addRibbonIcon('dice', '闪念笔记', (evt: MouseEvent) => {
+			if(!this.settings.cookie){
+				new Notice('Please set cookie first!');
+				return;
+			}
 			// Called when the user clicks the icon.
 			const myHeaders = {
 				"priority": "u=1, i",
-				"Cookie": "",
+				"Cookie": this.settings.cookie,
 				"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36",
 				"content-type": "application/json"
 			};
@@ -40,7 +45,53 @@ export default class MyPlugin extends Plugin {
 				method: 'POST',
 				headers: myHeaders
 			})
-				.then(result => console.log(result))
+				.then(result => {
+					new Notice('Pull notes success!');
+					//Get Shark Notes Base Folder
+					let folder = this.app.vault.getFolderByPath(this.settings.syncPath);
+					if (!folder) {
+						new Notice(`Create Folder With Setting ${this.settings.syncPath}`)
+						this.app.vault.createFolder(this.settings.syncPath);
+						folder = this.app.vault.getFolderByPath(this.settings.syncPath);
+					}
+
+					//Delete Origin notes
+					folder?.children.forEach(async (file) => {
+						await this.app.vault.delete(file);
+					})
+					new Notice(`Delete Shark Notes`)
+					//sync notes
+					if(result && result.json){
+						new Notice(`Sync notes count ${result.json.count}`)
+						result.json.data.forEach((item:any) => {
+							let content = item.note_info.content;
+							const extra = item.note_info.extra;
+							if(extra){
+								const jsonExtra = JSON.parse(extra);
+								const reference = `\n
+								> 标题：${jsonExtra.title}\n
+								> 网址：${jsonExtra.url}\n
+								> 引用：${jsonExtra.content}`;
+								content += reference;
+							}
+							const tags = item.tags;
+							if(tags){
+								let tagsContent ='---' +
+									'tags:';
+								tags.forEach((tag:string) => {
+									tagsContent+=`\n  - ${tag}`;
+								})
+
+							}
+							this.app.vault.create(`${this.settings.syncPath}/${item.note_meta.title}.md`, content, {
+								ctime: item.note_meta.ctime,
+								mtime: item.note_meta.mtime,
+							})
+						})
+					}
+
+
+				})
 				.catch(error => console.log('error', error));
 		});
 		// Perform additional things with the ribbon
@@ -135,7 +186,7 @@ class SampleSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Sync Path')
-			.setDesc('config where to save your shark notes')
+			.setDesc('config where to save your shark notes relative')
 			.addText(text => text
 				.setPlaceholder('notes path')
 				.setValue(this.plugin.settings.syncPath)
@@ -143,5 +194,16 @@ class SampleSettingTab extends PluginSettingTab {
 					this.plugin.settings.syncPath = value;
 					await this.plugin.saveSettings();
 				}));
+		new Setting(containerEl)
+			.setName('cookie')
+			.setDesc('cookie with shark notes')
+			.addText(text => text
+				.setPlaceholder('cookies')
+				.setValue(this.plugin.settings.cookie)
+				.onChange(async (value) => {
+					this.plugin.settings.cookie = value;
+					await this.plugin.saveSettings();
+				})
+			)
 	}
 }
