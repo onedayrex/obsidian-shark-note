@@ -7,6 +7,7 @@ import {
 	requestUrl,
 	Setting
 } from 'obsidian';
+import {TagInfo} from "./src/interface/TagInfo";
 
 // Remember to rename these classes and interfaces!
 
@@ -65,7 +66,16 @@ export default class MyPlugin extends Plugin {
 					if(result && result.json){
 						new Notice(`Sync notes count ${result.json.count}`)
 						result.json.data.forEach((item:any) => {
-							let content = item.note_info.content;
+							let content = '';
+							//add tags
+							const tags: TagInfo[] = item.tags;
+							if(tags){
+								let tagsContent ='---\ntags:\n';
+								tags.forEach((tag) => tagsContent+=`\n  - ${tag.content}`);
+								tagsContent += '\n---\n';
+								content+=tagsContent;
+							}
+							content += item.note_info.content;
 							const extra = item.note_info.extra;
 							let title:string = item.note_meta.title;
 							if(extra){
@@ -96,15 +106,6 @@ export default class MyPlugin extends Plugin {
 									}
 								}
 							}
-							// const tags = item.tags;
-							// if(tags){
-							// 	let tagsContent ='---' +
-							// 		'tags:';
-							// 	tags.forEach((tag:string) => {
-							// 		tagsContent+=`\n  - ${tag}`;
-							// 	})
-							//
-							// }
 							this.app.vault.create(`${this.settings.syncPath}/${title}.md`, content, {
 								ctime: item.note_meta.ctime,
 								mtime: item.note_meta.mtime,
