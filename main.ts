@@ -1,8 +1,7 @@
 import {
+	addIcon,
 	App,
-	Editor,
-	MarkdownView,
-	Modal, Notice,
+	Notice,
 	Plugin,
 	PluginSettingTab,
 	requestUrl,
@@ -25,9 +24,10 @@ export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
 
 	async onload() {
+		addIcon("notebook-tabs",'<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-notebook-tabs"><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M15 2v20"/><path d="M15 7h5"/><path d="M15 12h5"/><path d="M15 17h5"/></svg>')
 		await this.loadSettings();
 		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', '闪念笔记', (evt: MouseEvent) => {
+		const ribbonIconEl = this.addRibbonIcon('notebook-tabs', '闪念笔记', (evt: MouseEvent) => {
 			if(!this.settings.cookie){
 				new Notice('Please set cookie first!');
 				return;
@@ -73,9 +73,18 @@ export default class MyPlugin extends Plugin {
 								let extraContent:string = jsonExtra.content;
 								if(extraContent){
 									extraContent = extraContent.replace(/\n/g,'');
-									console.log(extraContent)
 								}
-								const reference = `\n> 标题：${jsonExtra.title}\n> 网址：[${jsonExtra.url}](${jsonExtra.url})\n> 引用：${extraContent}`;
+								let reference = '\n';
+								if(jsonExtra.title){
+									reference += `\n\t标题：${jsonExtra.title}`;
+								}
+								if(jsonExtra.url){
+									reference += `\n\t网址：${jsonExtra.url}`;
+								}
+								if(extraContent){
+									reference += `\n\t引用：${extraContent}`;
+								}
+
 								content += reference;
 
 								//if title is empty use extra title or empty
@@ -114,43 +123,6 @@ export default class MyPlugin extends Plugin {
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText('Status Bar Text');
 
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
-
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			}
-		});
-
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
 	}
@@ -168,21 +140,6 @@ export default class MyPlugin extends Plugin {
 	}
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
-
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
-
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
 
 class SampleSettingTab extends PluginSettingTab {
 	plugin: MyPlugin;
