@@ -61,29 +61,42 @@ export default class MyPlugin extends Plugin {
 					})
 					new Notice(`Delete Shark Notes`)
 					//sync notes
+					console.log(result)
 					if(result && result.json){
 						new Notice(`Sync notes count ${result.json.count}`)
 						result.json.data.forEach((item:any) => {
 							let content = item.note_info.content;
 							const extra = item.note_info.extra;
+							let title:string = item.note_meta.title;
 							if(extra){
 								const jsonExtra = JSON.parse(extra);
-								const reference = `\n
-								> 标题：${jsonExtra.title}\n
-								> 网址：${jsonExtra.url}\n
-								> 引用：${jsonExtra.content}`;
+								let extraContent:string = jsonExtra.content;
+								if(extraContent){
+									extraContent = extraContent.replace(/\n/g,'');
+									console.log(extraContent)
+								}
+								const reference = `\n> 标题：${jsonExtra.title}\n> 网址：[${jsonExtra.url}](${jsonExtra.url})\n> 引用：${extraContent}`;
 								content += reference;
-							}
-							const tags = item.tags;
-							if(tags){
-								let tagsContent ='---' +
-									'tags:';
-								tags.forEach((tag:string) => {
-									tagsContent+=`\n  - ${tag}`;
-								})
 
+								//if title is empty use extra title or empty
+								if(!title){
+									if(!jsonExtra.title){
+										title = '未命名';
+									}else {
+										title = jsonExtra.title;
+									}
+								}
 							}
-							this.app.vault.create(`${this.settings.syncPath}/${item.note_meta.title}.md`, content, {
+							// const tags = item.tags;
+							// if(tags){
+							// 	let tagsContent ='---' +
+							// 		'tags:';
+							// 	tags.forEach((tag:string) => {
+							// 		tagsContent+=`\n  - ${tag}`;
+							// 	})
+							//
+							// }
+							this.app.vault.create(`${this.settings.syncPath}/${title}.md`, content, {
 								ctime: item.note_meta.ctime,
 								mtime: item.note_meta.mtime,
 							})
